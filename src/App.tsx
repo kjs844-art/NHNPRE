@@ -393,9 +393,12 @@ function App() {
     let last = performance.now()
     let lastHud = 0
     let lastStamp = 0
+    // 테스트/데모용 배속 (?speed=N, 1~8)
+    const speedParam = Number(new URLSearchParams(window.location.search).get('speed'))
+    const speed = Number.isFinite(speedParam) ? Math.min(8, Math.max(1, speedParam)) : 1
 
     const loop = (t: number) => {
-      const dt = Math.min(0.1, (t - last) / 1000)
+      const dt = Math.min(0.1, (t - last) / 1000) * speed
       last = t
       const eng = engineRef.current
       const twist = twistRef.current
@@ -424,6 +427,15 @@ function App() {
         if (t - lastHud > 180) {
           lastHud = t
           setHud({ clock: snap.clock, erosion: snap.erosion, falseReports: snap.falseReports })
+          // 지속 침식은 이벤트 없이 오르므로 심장박동/경고도 여기서 판정
+          audioEngine.setHeartbeat(snap.erosion > 60 || twistRef.current.active)
+          if (snap.erosion > 60 && !firedRef.current.erosionHigh) {
+            const s = NIGHT_SCRIPTS[nightRef.current]
+            if (s.onErosionHigh) {
+              firedRef.current.erosionHigh = true
+              pushChat('boss', s.onErosionHigh)
+            }
+          }
         }
         if (t - lastStamp > 1000) {
           lastStamp = t

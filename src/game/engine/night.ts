@@ -13,6 +13,10 @@ import {
 } from './types'
 
 const INTRUDER_MAX_STAGE = 2
+/** 방치 지속 침식: 활성 이상 1건당 초당 % */
+const DRAIN_PER_ACTIVE = 0.55
+/** 카메라 앞까지 온 침입자의 추가 침식: 초당 % — 방치하면 곧 끝난다 */
+const INTRUDER_FINAL_DRAIN = 1.0
 
 /**
  * 밤 한 판의 전체 상태를 관리하는 순수 TS 상태머신.
@@ -80,10 +84,21 @@ export class NightEngine {
         if (a.type === 'intruder' && a.stage < INTRUDER_MAX_STAGE) {
           a.stage += 1
         }
-        this.erosion = Math.min(100, this.erosion + this.config.erosionPerEscalation)
+        // 카메라 앞까지 온 침입자는 두 배로 갉아먹는다
+        const mult = a.type === 'intruder' && a.stage >= INTRUDER_MAX_STAGE ? 2 : 1
+        this.erosion = Math.min(100, this.erosion + this.config.erosionPerEscalation * mult)
         events.push({ kind: 'escalated', anomaly: { ...a } })
         events.push({ kind: 'erosion', value: this.erosion })
       }
+    }
+
+    // 방치 지속 침식 — 이벤트는 만들지 않는다 (HUD는 snapshot으로 읽는다)
+    if (this.active.length > 0) {
+      let drainRate = DRAIN_PER_ACTIVE * this.active.length
+      for (const a of this.active) {
+        if (a.type === 'intruder' && a.stage >= INTRUDER_MAX_STAGE) drainRate += INTRUDER_FINAL_DRAIN
+      }
+      this.erosion = Math.min(100, this.erosion + dtSec * drainRate)
     }
 
     // 배드엔딩 판정이 밤 종료 판정보다 우선
