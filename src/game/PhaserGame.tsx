@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import Phaser from 'phaser'
-import { RoomScene, GAME_WIDTH, GAME_HEIGHT } from './scenes/RoomScene'
+import { CameraScene, GAME_WIDTH, GAME_HEIGHT } from './scenes/CameraScene'
 
 export default function PhaserGame() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -13,13 +13,13 @@ export default function PhaserGame() {
       type: Phaser.AUTO,
       width: GAME_WIDTH,
       height: GAME_HEIGHT,
-      backgroundColor: '#050505',
+      backgroundColor: '#040505',
       parent: containerRef.current,
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
       },
-      scene: [RoomScene],
+      scene: [CameraScene],
     })
 
     return () => {
