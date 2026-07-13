@@ -65,6 +65,7 @@ docs/           # 디자인 문서, 게임 소개 PDF 원본, AI 활용 기술 �
 npm run dev      # 개발 서버
 npm run build    # 프로덕션 빌드 (tsc + vite)
 npm run lint     # oxlint
+npm test         # 밤 엔진 단위 테스트 (node:test + tsx) — 19개
 ```
 
 URL 파라미터: `?seed=42`(재현 가능한 밤), `?speed=4`(테스트용 배속).

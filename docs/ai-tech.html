@@ -103,7 +103,9 @@
 <h2>6. AI 산출물 검증 방식</h2>
 <ul>
   <li><code>tsc</code> 타입체크 + <code>oxlint</code> 정적 분석: 경고 0</li>
+  <li>밤 엔진 단위 테스트 19개(<code>node:test</code>): 시드 RNG 결정성, AI 디렉터 적응·자비 규칙, 보고 판정(적중/near-miss/오탐/관용 규칙), 방치→배드엔딩·즉시처리→클리어를 결정론적으로 검증</li>
   <li>Playwright 자동 플레이테스트: 5일 밤 전체 완주(반전·트루엔딩 포함), 배드엔딩·재시도 경로, 브라우저 콘솔 에러 0건 확인</li>
+  <li>프로덕션 빌드를 GitHub Pages 실제 경로(<code>/NHNPRE/</code>)로 서빙해 부팅·플레이·자산 로드(404 0) 확인</li>
   <li>밸런스 계측: 방치 시 침식도 궤적을 초 단위로 로깅해 "배드엔딩 도달 불가" 결함을 발견·수정</li>
   <li>프로덕션 빌드(<code>vite build</code>) 및 GitHub Pages 경로 검증</li>
 </ul>
