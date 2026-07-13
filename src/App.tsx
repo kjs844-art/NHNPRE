@@ -62,7 +62,13 @@ const freshTwist = (): TwistState => ({
 })
 
 function App() {
-  const [save, setSave] = useState(loadSave)
+  const [save, setSave] = useState(() => {
+    const base = loadSave()
+    // 심사자 모드(?judge=1): 저장을 건드리지 않고 모든 밤을 즉시 선택 가능하게 연다.
+    // 심사자는 3~10분만 플레이하므로 원하는 밤(예: 반전이 있는 5일차)으로 바로 진입할 수 있다.
+    const judge = new URLSearchParams(window.location.search).get('judge') === '1'
+    return judge ? { ...base, unlockedNight: 5 } : base
+  })
   const [screen, setScreen] = useState<Screen>('menu')
   const [night, setNight] = useState(1)
   const [viewedRoom, setViewedRoom] = useState('lobby')
