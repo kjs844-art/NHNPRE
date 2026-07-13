@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/web-game-development-s3joxw
   workflow_dispatch:
 
 permissions:
