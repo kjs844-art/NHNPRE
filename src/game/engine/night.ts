@@ -13,8 +13,8 @@ import {
 } from './types'
 
 const INTRUDER_MAX_STAGE = 2
-/** 방치 지속 침식: 활성 이상 1건당 초당 % */
-const DRAIN_PER_ACTIVE = 0.55
+/** 방치 지속 침식: 활성 이상 1건당 초당 % (첫 1건은 완만, 여러 건 쌓이면 가팔라진다) */
+const DRAIN_PER_ACTIVE = 0.4
 /** 카메라 앞까지 온 침입자의 추가 침식: 초당 % — 방치하면 곧 끝난다 */
 const INTRUDER_FINAL_DRAIN = 1.0
 
@@ -92,10 +92,15 @@ export class NightEngine {
       }
     }
 
-    // 방치 지속 침식 — 이벤트는 만들지 않는다 (HUD는 snapshot으로 읽는다)
+    // 방치 지속 침식 — 이벤트는 만들지 않는다 (HUD는 snapshot으로 읽는다).
+    // 갓 생긴 이상은 완만하게, 오래 방치될수록(에스컬레이션 주기 단위로) 가팔라진다.
+    // → 즉시 처리하는 플레이어는 완만한 구간만 겪고, 전부 방치하면 걷잡을 수 없이 오른다.
     if (this.active.length > 0) {
-      let drainRate = DRAIN_PER_ACTIVE * this.active.length
+      let drainRate = 0
       for (const a of this.active) {
+        const age = this.elapsed - a.spawnedAt
+        const cycles = 1 + Math.floor(age / this.config.escalationInterval)
+        drainRate += DRAIN_PER_ACTIVE * Math.min(cycles, 4)
         if (a.type === 'intruder' && a.stage >= INTRUDER_MAX_STAGE) drainRate += INTRUDER_FINAL_DRAIN
       }
       this.erosion = Math.min(100, this.erosion + dtSec * drainRate)
@@ -114,8 +119,12 @@ export class NightEngine {
       return events
     }
 
-    // 고정 연출 스폰 (동시 상한 무시)
-    while (this.scriptedQueue.length > 0 && this.elapsed >= this.scriptedQueue[0].at) {
+    // 고정 연출 스폰 (동시 상한은 무시하되, 연출 정지 중에는 스폰하지 않는다)
+    while (
+      !this.spawningFrozen &&
+      this.scriptedQueue.length > 0 &&
+      this.elapsed >= this.scriptedQueue[0].at
+    ) {
       const s = this.scriptedQueue.shift()!
       const anomaly: ActiveAnomaly = {
         id: this.nextId++,
@@ -133,20 +142,24 @@ export class NightEngine {
     // 랜덤 스폰
     const progress = this.elapsed / this.config.durationSec
     const cap = this.director.simultaneousCap(this.config.maxSimultaneous, progress)
-    if (
-      !this.spawningFrozen &&
-      this.elapsed >= this.nextSpawnAt &&
-      this.active.length < cap &&
-      progress < 0.92 // 밤이 거의 끝나갈 때는 새로 만들지 않는다
-    ) {
-      const spawned = this.spawn(viewedRoomId)
-      if (spawned) events.push({ kind: 'spawned', anomaly: { ...spawned } })
-      const [min, max] = this.config.baseSpawnInterval
-      const base = min + this.rng() * (max - min)
-      this.nextSpawnAt = this.elapsed + base * this.director.spawnIntervalScale(this.erosion)
+    if (!this.spawningFrozen && this.elapsed >= this.nextSpawnAt && progress < 0.92) {
+      if (this.active.length < cap) {
+        const spawned = this.spawn(viewedRoomId)
+        if (spawned) events.push({ kind: 'spawned', anomaly: { ...spawned } })
+        this.rescheduleSpawn()
+      } else {
+        // 상한에 걸려 스폰하지 못하면, 즉시 몰아치지 않도록 스폰 시각을 미룬다
+        this.nextSpawnAt = this.elapsed + 1.5
+      }
     }
 
     return events
+  }
+
+  private rescheduleSpawn() {
+    const [min, max] = this.config.baseSpawnInterval
+    const base = min + this.rng() * (max - min)
+    this.nextSpawnAt = this.elapsed + base * this.director.spawnIntervalScale(this.erosion)
   }
 
   private spawn(viewedRoomId: string): ActiveAnomaly | null {
@@ -233,7 +246,7 @@ export class NightEngine {
       return { result: 'hit', events }
     }
 
-    // 이상은 있는데 유형이 틀림 — 절반 페널티, 오탐 카운트에는 미포함
+    // 이상은 있는데 유형이 틀림 — 완전 오탐(+4)보다 가벼운 페널티, 오탐 카운트에는 미포함
     const anyInRoom = this.active.some((a) => a.roomId === roomId)
     if (anyInRoom) {
       this.director.recordFalse()

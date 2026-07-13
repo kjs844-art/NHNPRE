@@ -113,15 +113,16 @@ export class CameraScene extends Phaser.Scene {
       this.staticOverlay.tilePositionY = Math.random() * 256
     }
 
-    // 3일차부터: 타임스탬프가 아주 가끔 21일 전 날짜로 1프레임 깜빡인다
-    if (this.cur && this.cur.night >= 3) {
+    // 3일차부터: 타임스탬프가 아주 가끔 21일 전 날짜로 1프레임 깜빡인다.
+    // CAM 07(관제실)은 이미 21일 전 날짜로 고정돼 있으므로 글리치를 적용하지 않는다.
+    if (this.cur && this.cur.night >= 3 && this.cur.roomId !== 'control') {
       this.glitchTimer -= delta
       if (this.glitchTimer <= 0) {
         this.glitchTimer = 6000 + Math.random() * 9000
         const c = this.cur
         this.stampText.setText(`${dateStr(c.night, GLITCH_OFFSET_DAYS)}  ${c.clock}:44`)
         this.time.delayedCall(120, () => {
-          if (this.cur) this.updateStamp(this.cur)
+          if (this.cur && this.cur.roomId !== 'control') this.updateStamp(this.cur)
         })
       }
     }

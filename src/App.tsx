@@ -69,6 +69,7 @@ function App() {
   const [transitioning, setTransitioning] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [reportLocked, setReportLocked] = useState(false)
+  const [twistActive, setTwistActive] = useState(false)
   const [hud, setHud] = useState({ clock: '00:00', erosion: 0, falseReports: 0 })
   const [chat, setChat] = useState<ChatEntry[]>([])
   const [typing, setTyping] = useState(false)
@@ -177,6 +178,9 @@ function App() {
     const params = new URLSearchParams(window.location.search)
     const seedParam = Number(params.get('seed'))
     const seed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam + n : Date.now() % 2147483647
+    // 이전 밤에서 남은 타이머(채팅/보고잠금/트위스트)를 모두 정리하고 시작
+    clearTimers()
+    audioEngine.setHeartbeat(false)
     engineRef.current = new NightEngine(config, ROOM_META_MAP, seed)
     nightRef.current = n
     twistRef.current = freshTwist()
@@ -189,6 +193,10 @@ function App() {
     setTyping(false)
     setCam07Live(false)
     setTwistFinal(false)
+    setTwistActive(false)
+    setReportOpen(false)
+    setReportLocked(false)
+    setTransitioning(false)
     setHud({ clock: '00:00', erosion: 0, falseReports: 0 })
     setScreen('night')
     audioEngine.startDrone()
@@ -211,6 +219,8 @@ function App() {
     const t = twistRef.current
     t.started = true
     t.active = true
+    setTwistActive(true) // 즉시 재렌더 → 보고 버튼 비활성화 + HUD 시계 04:44 고정
+    setReportOpen(false)
     const eng = engineRef.current
     eng?.freezeSpawning(true)
     eng?.clearActive()
@@ -291,11 +301,16 @@ function App() {
       audioEngine.switchBlip()
       EventBus.emit('static-burst')
       addTimer(() => {
+        const t = twistRef.current
+        // 반전 중 자동 전환이 이미 관제실로 리다이렉트했다면, 대기 중이던 수동 전환은 무시한다
+        if (t.active && t.visited && viewedRoomRef.current === 'control' && roomId !== 'control') {
+          setTransitioning(false)
+          return
+        }
         viewedRoomRef.current = roomId
         setViewedRoom(roomId)
         setTransitioning(false)
 
-        const t = twistRef.current
         if (t.active) {
           if (roomId === 'control') {
             t.visited = true
@@ -410,6 +425,12 @@ function App() {
         }
         const snap = eng.snapshot()
 
+        // 밤이 이미 종료(클리어/실패)됐으면 이후 로직(타임드 대사·반전)을 실행하지 않는다
+        if (snap.over) {
+          raf = requestAnimationFrame(loop)
+          return
+        }
+
         const script = NIGHT_SCRIPTS[nightRef.current]
         while (
           firedRef.current.timedIdx < script.timed.length &&
@@ -479,6 +500,10 @@ function App() {
       audioEngine.stop()
       clearTimers()
     }
+    // 게임오버·최종 엔딩 화면에 도달하면 심장박동을 멈춘다
+    if (screen === 'gameover' || screen === 'end') {
+      audioEngine.setHeartbeat(false)
+    }
     if (screen === 'end') {
       setPostCredit(false)
       addTimer(() => setPostCredit(true), 3200)
@@ -546,7 +571,7 @@ function App() {
           <PhaserGame />
           <NightHud
             night={night}
-            clock={twistRef.current.active ? '04:44' : hud.clock}
+            clock={twistActive ? '04:44' : hud.clock}
             erosion={hud.erosion}
             falseReports={hud.falseReports}
             muted={save.muted}
@@ -555,7 +580,7 @@ function App() {
           <ChatPanel entries={chat} typing={typing} />
           <button
             className="report-button"
-            disabled={transitioning || reportLocked || twistRef.current.active}
+            disabled={transitioning || reportLocked || twistActive}
             onClick={() => setReportOpen(true)}
           >
             {reportLocked ? '접수 거부됨' : '보고'}

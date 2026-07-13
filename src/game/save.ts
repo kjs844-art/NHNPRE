@@ -12,8 +12,8 @@ export function loadSave(): SaveData {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<SaveData>
       return {
-        name: typeof parsed.name === 'string' ? parsed.name : '',
-        unlockedNight: Math.min(5, Math.max(1, Number(parsed.unlockedNight) || 1)),
+        name: typeof parsed.name === 'string' ? parsed.name.slice(0, 10) : '',
+        unlockedNight: Math.min(5, Math.max(1, Math.floor(Number(parsed.unlockedNight)) || 1)),
         muted: !!parsed.muted,
       }
     }
