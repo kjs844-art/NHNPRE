@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>이상 없음 — AI 활용 기술 문서</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    color: #1a1a1a; margin: 0; padding: 48px 56px; font-size: 13px; line-height: 1.75;
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: 0.04em; }
+  .meta { color: #778; font-size: 11.5px; margin-top: 6px; }
+  hr { border: none; border-top: 2px solid #223; margin: 20px 0 24px; }
+  h2 { font-size: 17px; margin: 26px 0 10px; padding-left: 10px; border-left: 4px solid #2c465c; }
+  h3 { font-size: 14px; margin: 16px 0 6px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid #ccd; padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #eef0f4; font-size: 12px; }
+  code { background: #f0f1f4; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  pre { background: #f4f5f8; border: 1px solid #dde0e8; padding: 12px 14px; border-radius: 4px; font-size: 11.5px; line-height: 1.6; overflow-x: hidden; white-space: pre-wrap; }
+  .quote { background: #f6f6f2; border-left: 4px solid #8a8a6a; padding: 10px 14px; margin: 8px 0; font-size: 12.5px; }
+  ul { margin: 6px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<h1>「이상 없음 (ALL CLEAR)」 AI 활용 기술 문서</h1>
+<p class="meta">NHN GAME × AI HACKATHON (NAN2026) 사전 과제 · 개인 참가 · 소스: github.com/kjs844-art/NHNPRE</p>
+<hr />
+
+<h2>1. 사용한 AI 도구</h2>
+<table>
+  <tr><th>도구</th><th>용도</th></tr>
+  <tr><td><b>Claude (Anthropic) — Claude Code</b></td>
+      <td>기획 문서 작성, 전체 코드 구현(TypeScript/React/Phaser), 절차적 아트(코드 드로잉)·사운드(WebAudio 합성) 생성, 스토리·대사 집필, Playwright 자동 플레이테스트 작성·실행, 버그 수정, 배포 설정, 본 문서 작성</td></tr>
+  <tr><td><b>Claude 멀티에이전트 워크플로우</b></td>
+      <td>① 디자인 비평 패널: 독립된 AI 에이전트 3개가 각각 다른 심사 관점으로 기획서를 비판 → 설계 반영<br/>
+          ② 코드 리뷰: AI 에이전트 3개가 관점별로 결함을 탐색하고, 발견된 각 항목을 별도의 '반박 전담' AI가 적대적으로 검증</td></tr>
+</table>
+<p>이미지 생성 AI·음원 생성 AI는 사용하지 않았다. 모든 시각 요소는 Phaser Graphics 코드 드로잉, 모든 소리는 WebAudio 오실레이터/노이즈 합성으로 제작했다 (외부 에셋 0개).</p>
+
+<h2>2. 개발 구조 — 사람은 디렉터, AI는 제작 전 공정</h2>
+<pre>
+[사람·디렉터]  방향 결정 (장르: 심리 호러 + 소름 반전 / 브라우저 즉시 플레이 / 개인 참가)
+      │
+      ▼
+[AI]  ① 기획: 디자인 문서 초안 (컨셉·코어루프·반전 설계·수치 초안)
+      ② 비평: AI 3인 심사 패널 — "첫 60초 재미" / "구현 리스크" / "반전 완성도"
+              → 치명 결함 6건, 중요 결함 12건 도출 → 설계 수정
+      ③ 구현: 엔진(순수 TS 상태머신) → 방 드로잉 → React UI → 오디오 합성
+      ④ 검증: Playwright로 5일 밤 전체 자동 완주 + 배드엔딩 경로 검증 (콘솔 에러 0)
+              → 밸런스 결함 발견("배드엔딩 도달 불가") → 수치 재설계 → 재검증
+      ⑤ 리뷰: AI 결함 탐색 3방향 + 항목별 적대적 반박 검증 → 확정 결함만 수정
+      ⑥ 산출: GitHub Pages 배포 설정, 플레이 영상 녹화, 제출 문서
+</pre>
+<p>커밋 기록(github.com/kjs844-art/NHNPRE)에 위 과정이 단계별로 그대로 남아 있다.</p>
+
+<h2>3. AI에게 준 주요 프롬프트·지시 사항</h2>
+
+<h3>3-1. 방향 지시 (사람 → AI)</h3>
+<div class="quote">"추리 및 스릴러물. 약간 공포스럽고 스릴도 있으면서 반전이 엄청나고 그 반전이 소름끼치게 만들었으면 한다."</div>
+<div class="quote">"play in browser로 실행되는 게임이어야 한다. 요건에 충족하는 게임을 처음부터 끝까지 만들어서 배포와 제출 직전까지."</div>
+
+<h3>3-2. 디자인 비평 패널 프롬프트 (AI → AI, 요약)</h3>
+<div class="quote">"당신은 게임 해커톤 심사위원입니다. 심사자는 3~10분만 플레이합니다. '첫 60초 안에 재미와 긴장감이 전달되는가' 관점에서만 비판하세요. 온보딩 속도, 첫 이상 현상까지의 시간, 조작 이해 난이도를 점검하고 구체적 수정안을 제시하세요."</div>
+<div class="quote">"당신은 시니어 게임 프로그래머입니다. 판정 애매함(플레이어가 '물체 이동'을 실제로 알아챌 수 있는 시각 대비인가), 상태머신 엣지케이스(보고 모달 중 스폰, 카메라 전환 중 판정), 밤 길이와 스폰 수의 수치 균형을 비판하세요."</div>
+<div class="quote">"당신은 호러 내러티브 디자이너입니다. 반전의 복선이 충분한가, 논리적으로 성립하는가, CAM 07 연출이 실제로 소름을 유발할까를 비판하고 더 소름끼치게 만들 수정안을 제시하세요."</div>
+<p>이 비평에서 나온 핵심 수정: 스크립트된 오프닝(첫 이상 T+10초 고정), 관찰한 방에만 비교형 이상 스폰(기억 기준선 보장), 이동↔소실 상호 정답 인정, "화면 속 인물은 안 볼 때만 움직인다"는 반전 연출, 근무자 이름 등록 → 최종 보고서에 자기 이름 출력, 7번째 보고 선택지 [실종자].</p>
+
+<h3>3-3. 코드 리뷰 워크플로우 프롬프트 (AI → AI, 요약)</h3>
+<div class="quote">"실제 코드를 읽고 검증 가능한 결함만 보고하라. 스타일 지적 금지." (탐색 3방향: 상태머신/생명주기 · 엔진 로직 · 렌더/UX) → 각 발견 항목마다: "다음 버그 보고를 반박하라. 재현 가능한 결함인지 판정하라. 확신이 없으면 real=false."</div>
+
+<h2>4. 게임 내 알고리즘형 AI — 'AI 디렉터'</h2>
+<p>게임 안에는 플레이어 실력에 실시간 적응하는 결정론적 디렉터 시스템이 동작한다 (<code>src/game/engine/director.ts</code>).</p>
+<table>
+  <tr><th>입력 신호</th><th>출력 제어</th></tr>
+  <tr>
+    <td>최근 8회 판정 이력(적중/오탐)<br/>평균 탐지 소요 시간<br/>현재 침식도</td>
+    <td>· 스폰 간격 배율 (숙련 0.7× ~ 고전 1.35×)<br/>
+        · 유형 가중치 — 숙련자에겐 미묘한 변화(이동·소실), 고전 중이면 명확한 변화(침입자·조명)<br/>
+        · 동시 발생 상한 (밤 진행도 × 실력 비례)<br/>
+        · <b>자비 규칙</b>: 침식도 70% 초과 시 스폰 지연 + 에스컬레이션 감속</td>
+  </tr>
+</table>
+<p>모든 판정은 시드 가능한 RNG(mulberry32) 위에서 동작해 자동 테스트로 재현·검증했다.</p>
+
+<h2>5. 외부 에셋 / 오픈소스 출처</h2>
+<table>
+  <tr><th>구분</th><th>이름</th><th>라이선스</th><th>용도</th></tr>
+  <tr><td rowspan="5">오픈소스<br/>라이브러리</td>
+      <td>React 19</td><td>MIT</td><td>UI 프레임워크</td></tr>
+  <tr><td>Phaser 3.90</td><td>MIT</td><td>2D 렌더링 엔진</td></tr>
+  <tr><td>Vite 8</td><td>MIT</td><td>빌드 도구</td></tr>
+  <tr><td>TypeScript</td><td>Apache-2.0</td><td>언어</td></tr>
+  <tr><td>oxlint</td><td>MIT</td><td>린터(개발용)</td></tr>
+  <tr><td>이미지</td><td colspan="3">없음 — 전부 Phaser Graphics 코드 드로잉 (방 6종 + 관제실, 노이즈/스캔라인/비네트 텍스처는 런타임 Canvas 생성)</td></tr>
+  <tr><td>오디오</td><td colspan="3">없음 — 전부 WebAudio 합성 (드론, 전환 블립, 접수음, 버저, 심장박동, 스팅어)</td></tr>
+  <tr><td>폰트</td><td colspan="3">시스템 기본 폰트 스택만 사용 (외부 웹폰트 없음)</td></tr>
+</table>
+
+<h2>6. AI 산출물 검증 방식</h2>
+<ul>
+  <li><code>tsc</code> 타입체크 + <code>oxlint</code> 정적 분석: 경고 0</li>
+  <li>밤 엔진 단위 테스트 19개(<code>node:test</code>): 시드 RNG 결정성, AI 디렉터 적응·자비 규칙, 보고 판정(적중/near-miss/오탐/관용 규칙), 방치→배드엔딩·즉시처리→클리어를 결정론적으로 검증</li>
+  <li>Playwright 자동 플레이테스트: 5일 밤 전체 완주(반전·트루엔딩 포함), 배드엔딩·재시도 경로, 브라우저 콘솔 에러 0건 확인</li>
+  <li>프로덕션 빌드를 GitHub Pages 실제 경로(<code>/NHNPRE/</code>)로 서빙해 부팅·플레이·자산 로드(404 0) 확인</li>
+  <li>밸런스 계측: 방치 시 침식도 궤적을 초 단위로 로깅해 "배드엔딩 도달 불가" 결함을 발견·수정</li>
+  <li>프로덕션 빌드(<code>vite build</code>) 및 GitHub Pages 경로 검증</li>
+</ul>
+
+</body>
+</html>
